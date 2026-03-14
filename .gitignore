@@ -1,0 +1,42 @@
+# =========================
+# Java & Spring Boot
+# =========================
+**/target/
+**/*.jar
+**/*.war
+**/*.class
+**/*.log
+
+# =========================
+# IntelliJ IDEA & Eclipse
+# =========================
+**/.idea/
+**/*.iml
+**/*.iws
+.classpath
+.project
+.settings/
+
+# =========================
+# Docker & Database Volumes
+# =========================
+# (This prevents your local Postgres data from uploading)
+**/pgdata/
+**/postgres-data/
+**/db-data/
+**/.docker/
+
+# =========================
+# React / Node.js (For Later)
+# =========================
+**/node_modules/
+**/build/
+**/dist/
+**/.env
+**/.env.local
+
+# =========================
+# OS Generated Files
+# =========================
+.DS_Store
+Thumbs.db

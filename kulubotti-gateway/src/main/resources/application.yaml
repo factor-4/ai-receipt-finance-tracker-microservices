@@ -9,15 +9,17 @@ spring:
       discovery:
         locator:
           enabled: true
-      routes:
-        - id: expense-service
-          uri: lb://EXPENSE-SERVICE
-          predicates:
-            - Path=/api/expenses/**
-        - id: auth-service
-          uri: lb://AUTH-SERVICE
-          predicates:
-            - Path=/api/auth/**
+      server:
+        webmvc:
+          routes:
+            - id: expense-service
+              uri: lb://EXPENSE-SERVICE
+              predicates:
+                - Path=/api/expenses/**
+            - id: auth-service
+              uri: lb://AUTH-SERVICE
+              predicates:
+                - Path=/api/auth/**
 
 eureka:
   client:

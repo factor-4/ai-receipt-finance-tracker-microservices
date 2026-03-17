@@ -23,7 +23,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register").permitAll() // Leave the register door wide open!
+                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll() // Leave the register door wide open!
                         .anyRequest().authenticated() // Lock everything else
                 );
 

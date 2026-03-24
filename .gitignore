@@ -40,3 +40,6 @@
 # =========================
 .DS_Store
 Thumbs.db
+
+# Ignore JVM Crash Logs
+hs_err_pid*.log

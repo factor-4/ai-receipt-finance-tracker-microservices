@@ -1,0 +1,22 @@
+server:
+  port: 8083 # The AI Service lives here
+
+spring:
+  application:
+    name: ai-parser-service
+  kafka:
+    consumer:
+      bootstrap-servers: localhost:9093
+      group-id: ai-processing-group
+      # ow to translate the incoming JSON back into a Java object
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*" # Trust incoming JSON from the Expense Service
+        spring.json.use.type.headers: false # Tells Spring to ignore the producer's package path
+        spring.json.value.default.type: com.kulubotti.ai_parser_service.event.ExpenseCreatedEvent
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

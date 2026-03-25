@@ -1,20 +1,24 @@
 server:
-  port: 8083 # The AI Service lives here
+  port: 8083
 
 spring:
   application:
     name: ai-parser-service
   kafka:
+    bootstrap-servers: localhost:9093
     consumer:
-      bootstrap-servers: localhost:9093
       group-id: ai-processing-group
-      # ow to translate the incoming JSON back into a Java object
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "*" # Trust incoming JSON from the Expense Service
-        spring.json.use.type.headers: false # Tells Spring to ignore the producer's package path
+        # THESE BELONG TO THE CONSUMER (Reading the task)
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
         spring.json.value.default.type: com.kulubotti.ai_parser_service.event.ExpenseCreatedEvent
+    producer:
+      # THIS BELONGS TO THE PRODUCER (Sending the result)
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
 
 eureka:
   client:

@@ -1,5 +1,6 @@
 package com.kulubotti.expense_service.entity;
 
+import com.kulubotti.expense_service.model.ExpenseStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -28,6 +29,10 @@ public class Expense {
     @Column(nullable = false)
     private LocalDate date;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ExpenseStatus status;
+
 
     //  to store this Java Map natively as a PostgreSQL JSONB column!
     @JdbcTypeCode(SqlTypes.JSON)
@@ -36,12 +41,14 @@ public class Expense {
 
     public Expense() {}
 
-    public Expense(String username, String merchantName, BigDecimal amount, LocalDate date, Map<String, Object> rawReceiptData) {
+    public Expense(String username, String merchantName, BigDecimal amount, LocalDate date,
+                   Map<String, Object> rawReceiptData, ExpenseStatus status) {
         this.username = username;
         this.merchantName = merchantName;
         this.amount = amount;
         this.date = date;
         this.rawReceiptData = rawReceiptData;
+        this.status = status;
     }
 
     // --- Getters ---
@@ -51,4 +58,10 @@ public class Expense {
     public BigDecimal getAmount() { return amount; }
     public LocalDate getDate() { return date; }
     public Map<String, Object> getRawReceiptData() { return rawReceiptData; }
+    public ExpenseStatus getStatus() { return status; }
+
+
+    public void setStatus(ExpenseStatus status) {
+        this.status = status;
+    }
 }

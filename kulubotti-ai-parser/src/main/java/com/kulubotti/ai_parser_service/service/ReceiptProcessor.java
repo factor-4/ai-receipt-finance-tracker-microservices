@@ -2,10 +2,20 @@ package com.kulubotti.ai_parser_service.service;
 
 import com.kulubotti.ai_parser_service.event.ExpenseCreatedEvent;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Service
 public class ReceiptProcessor {
+
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    public ReceiptProcessor(KafkaTemplate<String, Object> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
 
     // This method automatically triggers the millisecond a message hits the topic!
     @KafkaListener(topics = "ai-receipt-topic", groupId = "ai-processing-group")
@@ -22,7 +32,20 @@ public class ReceiptProcessor {
             Thread.currentThread().interrupt();
         }
 
-        System.out.println("[AI PARSER] Successfully extracted data for Expense ID: " + event.expenseId());
+        // Inside the listener method after the 3-second delay
+        Map<String, Object> resultPayload = Map.of(
+                "expenseId", event.expenseId(),
+                "status", "PROCESSED"
+        );
+
+        // Send the Map directly - KafkaTemplate will convert it to perfect JSON
+        kafkaTemplate.send("expense-results", resultPayload).whenComplete((result, ex) -> {
+            if (ex == null) {
+                System.out.println(" [AI PARSER] SUCCESS: Sent Expense ID " + event.expenseId());
+            } else {
+                System.err.println(" [AI PARSER] FAILED: " + ex.getMessage());
+            }
+        });
 
 
     }

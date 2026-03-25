@@ -20,6 +20,13 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+    consumer:
+      group-id: expense-final-group # A fresh name to pick up all waiting messages
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest # This forces it to read messages it missed while it was broken
+      properties:
+        spring.json.trusted.packages: "*"
 
 eureka:
   client:

@@ -2,11 +2,13 @@ package com.kulubotti.expense_service.controller;
 
 import com.kulubotti.expense_service.dto.ExpenseRequest;
 import com.kulubotti.expense_service.entity.Expense;
+import com.kulubotti.expense_service.exception.ResourceNotFoundException;
 import com.kulubotti.expense_service.model.ExpenseStatus;
 import com.kulubotti.expense_service.repository.ExpenseRepository;
 import com.kulubotti.expense_service.event.ExpenseCreatedEvent;
 import com.kulubotti.expense_service.service.ExpenseProducer;
 import com.kulubotti.expense_service.service.JwtService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,7 +35,7 @@ public class ExpenseController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> addExpense(
             @RequestHeader("Authorization") String authHeader,
-            @RequestBody ExpenseRequest request) {
+            @Valid @RequestBody ExpenseRequest request) {
 
         String token = authHeader.substring(7);
         String username = jwtService.extractUsername(token);
@@ -79,8 +81,10 @@ public class ExpenseController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Expense> getExpenseById(@PathVariable Long id) {
-        return expenseRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        // We find the expense or immediately throw our custom 404 exception
+        Expense expense = expenseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + id));
+
+        return ResponseEntity.ok(expense);
     }
 }

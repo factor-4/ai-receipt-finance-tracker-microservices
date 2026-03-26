@@ -26,11 +26,19 @@ This platform is built on a distributed microservices architecture, utilizing th
 
 * State Synchronization: Once processing is complete, the results are broadcast back through a response topic. The Expense Service consumes this result, updates the database, and transitions the record to a PROCESSED state.
 
+## Key Engineering Decisions
+* Eventual Consistency over ACID: I chose an asynchronous Kafka pipeline for receipt processing. While this introduces eventual consistency (the user sees "Pending" for a few seconds), it ensures the API Gateway remains responsive and can handle high-traffic bursts without waiting for slow AI/OCR logic.
+
+* Stateless Security: I implemented JWT-based authentication instead of Server-Side Sessions. This allows the KuluBotti services to scale horizontally behind the Gateway without needing a shared session store like Redis.
+
+* Schema Validation at the Edge: By using Jakarta Bean Validation on DTO Records, I ensure that malformed data is rejected at the Controller level, preventing unnecessary load on the downstream Kafka brokers and Databases.
+
 ## Security & Data Isolation
 
 * **Defense-in-Depth:** Incoming payloads are strictly filtered through immutable Java Records (DTOs) to prevent mass assignment attacks. 
 * **Database-per-Service Pattern:** To ensure strict domain isolation and minimize blast radius, the Auth Service and Expense Service operate on entirely separate PostgreSQL databases. 
 * **Secret Management:** No sensitive credentials or API keys are committed to version control. All secrets are injected via `.env` files or environment variables.
+* ** Database Isolation: I implemented a Database-per-Service pattern using separate PostgreSQL containers for Auth and Expenses. This prevents "Shared Database" coupling and ensures that a schema change in the Expense service cannot break the Authentication logic.
 
 ## Project Structure
 

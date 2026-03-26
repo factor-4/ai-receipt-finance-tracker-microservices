@@ -14,8 +14,8 @@ This platform is built on a distributed microservices architecture, utilizing th
 * **API Gateway (Spring Cloud Gateway MVC):** Acts as the single entry point for all client requests, leveraging Java 21 Virtual Threads for high-concurrency, non-blocking routing.
 * **Service Registry (Netflix Eureka):** Provides dynamic service discovery, allowing microservices to register themselves on boot without hardcoded IP addresses.
 * **Auth Service:** Manages user registration and authentication. Secures the perimeter using BCrypt password hashing and stateless JSON Web Tokens (JWT).
-* **Expense Service (In Progress):** The core business engine responsible for managing receipt data and financial calculations.
-* **AI Parser Service (Planned):** An asynchronous, decoupled worker service that consumes image data via Apache Kafka to automatically extract pricing and dates using AI.
+* **Expense Service :** The core business engine responsible for managing receipt data. It implements asynchronous status updates, Jakarta Bean Validation for data integrity, and a Global Exception Handling layer for secure, standardized API responses.
+* **AI Parser Service :** A decoupled worker service that simulates AI data extraction. It communicates with the Expense Service via Apache Kafka, allowing for non-blocking, high-latency processing of financial documents.
 
 ## Security & Data Isolation
 

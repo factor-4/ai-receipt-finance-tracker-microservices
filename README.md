@@ -17,6 +17,15 @@ This platform is built on a distributed microservices architecture, utilizing th
 * **Expense Service :** The core business engine responsible for managing receipt data. It implements asynchronous status updates, Jakarta Bean Validation for data integrity, and a Global Exception Handling layer for secure, standardized API responses.
 * **AI Parser Service :** A decoupled worker service that simulates AI data extraction. It communicates with the Expense Service via Apache Kafka, allowing for non-blocking, high-latency processing of financial documents.
 
+## Asynchronous AI Pipeline 
+* To maintain high availability and prevent blocking the main request thread during expensive OCR operations, the platform utilizes an event-driven "Fire-and-Forget" pattern:
+
+* Non-Blocking Submission: When a user uploads a receipt via the Expense Service, the system validates the payload, initializes the record as PENDING, and immediately returns an HTTP 202 Accepted response.
+
+* Event Orchestration (Apache Kafka): An ExpenseCreatedEvent is published to a dedicated Kafka topic. The AI Parser Service—operating as a decoupled consumer—picks up the task to simulate data extraction.
+
+* State Synchronization: Once processing is complete, the results are broadcast back through a response topic. The Expense Service consumes this result, updates the database, and transitions the record to a PROCESSED state.
+
 ## Security & Data Isolation
 
 * **Defense-in-Depth:** Incoming payloads are strictly filtered through immutable Java Records (DTOs) to prevent mass assignment attacks. 

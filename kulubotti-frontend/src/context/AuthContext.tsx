@@ -16,6 +16,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = (newToken: string) => {
     localStorage.setItem('token', newToken); // Save to "Closet"
     setToken(newToken); 
+    console.log('token set in login functiona authcontext', newToken);
   };
 
   const logout = () => {
@@ -24,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAuthenticated = !!token;
+  console.log('current state of isauthenticated in authcontext ', isAuthenticated);
 
   return (
     <AuthContext.Provider value={{ token, login, logout, isAuthenticated }}>

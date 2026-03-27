@@ -1,34 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig'; 
 import { useAuth } from '../context/AuthContext'; 
 import { Lock, User, Loader2 } from 'lucide-react'; 
+import { useNavigate } from 'react-router-dom'; // Add this
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { login, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
   
-  const { login } = useAuth();
+  useEffect(() => {
+    console.log("inside use effect, is authenticated valuses ", isAuthenticated);
+    if (isAuthenticated) {
+      console.log("Authenticated! Redirecting to dashboard...");
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    try {
-      // Java Auth Service through the Gateway (Port 8080)
-      const response = await api.post('/auth/login', { username, password });
-      
-      // take the JWT from the response and plug it into our Context
-      login(response.data.token);
-      console.log("Login successful!");
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid username or password');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await api.post('/auth/login', { username, password });
+    
+    // 1. Update the context
+    
+    login(response.data);
+    
+    console.log("Login successful!", response);
+    
+   
+    
+  } catch (err: any) {
+    setError(err.response?.data?.message || 'Invalid username or password');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">

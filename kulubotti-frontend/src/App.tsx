@@ -1,41 +1,37 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
+import ExpenseDashboard from './pages/ExpenseDashboard';
 
 // A "Gatekeeper" component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
-  
-  // If not logged in, send them to /login
+
+
   if (!isAuthenticated) {
-    return <Navigate to="/login" /> ;
+    return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 function App() {
   const { isAuthenticated } = useAuth();
+  console.log('iatuthenticate value in app tex ', isAuthenticated);
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Route */}
-        <Route path="/login" element={
-          isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
-        } />
+        
+        <Route path="/login" element={<LoginPage />} />
 
-        {/* Protected Routes (Hidden behind the gate) */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
-            <div className="p-10 text-white">
-              <h1 className="text-4xl font-bold">Welcome to your Dashboard!</h1>
-              <p className="mt-4">If you see this, your Java JWT is working.</p>
-            </div>
+            <ExpenseDashboard />
           </ProtectedRoute>
         } />
 
-        {/* Default redirect */}
+        {/* Only use the ternary for the "Catch-all" redirect */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
       </Routes>
     </BrowserRouter>

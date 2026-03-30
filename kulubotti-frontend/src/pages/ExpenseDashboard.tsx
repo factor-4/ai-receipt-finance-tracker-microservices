@@ -16,7 +16,10 @@ const ExpenseDashboard = () => {
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
 
-  // 1. Fetch Expenses from the Java Expense Service
+  // the Ref (The "Remote Control")
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  //  Fetch Expenses from the Java Expense Service
   const fetchExpenses = async () => {
     try {
       const response = await api.get('/expenses');
@@ -49,6 +52,33 @@ const ExpenseDashboard = () => {
     }
   };
 
+
+  const handleFileUpload = async (file: File) => {
+    setLoading(true);
+
+    // 1. Package the file into FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    // Optional: Add metadata so the backend knows what to do
+    formData.append('description', 'Manual Upload');
+
+    try {
+      // 2. POST to the Java Backend
+      // Axios handles the 'Content-Type: multipart/form-data' header automatically when it sees FormData
+      const response = await api.post('/expenses/upload', formData);
+
+      console.log("Upload successful:", response.data);
+
+      // 4. Refresh the list to show the new item (likely in PENDING state)
+      fetchExpenses();
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert("Error uploading receipt. Ensure the backend /upload endpoint is ready.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
       <div className="max-w-4xl mx-auto">
@@ -63,10 +93,10 @@ const ExpenseDashboard = () => {
 
           <div className="flex items-center gap-6">
             <button
-              onClick={handleAddTestExpense}
-              className="group relative flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95"
             >
-              <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+              <Plus size={20} />
               New Receipt
             </button>
 
@@ -120,6 +150,25 @@ const ExpenseDashboard = () => {
           ))}
         </div>
       </div>
+
+
+
+      {/* Standardized Hidden Input: 
+  - accept="image/*" ensures only images are picked.
+  - capture="environment" tells mobile OS to open the rear camera.
+      */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        capture="environment"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFileUpload(file);
+        }}
+      />
+
     </div>
   );
 };

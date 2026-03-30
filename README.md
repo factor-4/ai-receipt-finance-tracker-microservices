@@ -1,55 +1,52 @@
-﻿# AI Receipt Finance Tracker Microservices
+﻿# KuluBotti 🤖🧾
+### AI-Powered Receipt Finance Tracker Microservices
 
+KuluBotti is a custom-built, event-driven microservices platform for automated expense management. Designed from scratch using **Java 21** and **Spring Boot**, this project demonstrates a deep understanding of scalable backend patterns, dynamic service discovery, and resilient asynchronous processing.
 
-# KuluBotti 🤖🧾
+## ## Core Architecture
 
-KuluBotti is a custom-built, event-driven microservices platform for automated expense management. 
+This platform is built on a distributed microservices architecture utilizing the following core components:
 
-Designed entirely from scratch using modern **Java 21** and **Spring Boot 4**, this project moves beyond standard monolithic CRUD applications to demonstrate a deep understanding of scalable backend patterns, dynamic service discovery, and asynchronous AI data processing.
+* **API Gateway (Spring Cloud Gateway):** Single entry point for all client requests, leveraging Java 21 Virtual Threads for high-concurrency routing.
+* **Service Registry (Netflix Eureka):** Provides dynamic service discovery, allowing microservices to register themselves without hardcoded IP addresses.
+* **Auth Service:** Manages user identity using BCrypt hashing and stateless **JWT (JSON Web Tokens)** for secure, perimeter-based authentication.
+* **Expense Service:** The core business engine managing receipt data, implementing Jakarta Bean Validation and a Global Exception Handling layer.
+* **AI Parser Service:** A decoupled worker service that processes receipt data. It communicates via **Apache Kafka** to handle high-latency OCR/Extraction tasks without blocking the main user flow.
 
-## Core Architecture
+## ## Reliability & DevOps Standards
 
-This platform is built on a distributed microservices architecture, utilizing the following core components:
+To achieve professional-grade stability and "full standardization," the following patterns are implemented:
 
-* **API Gateway (Spring Cloud Gateway MVC):** Acts as the single entry point for all client requests, leveraging Java 21 Virtual Threads for high-concurrency, non-blocking routing.
-* **Service Registry (Netflix Eureka):** Provides dynamic service discovery, allowing microservices to register themselves on boot without hardcoded IP addresses.
-* **Auth Service:** Manages user registration and authentication. Secures the perimeter using BCrypt password hashing and stateless JSON Web Tokens (JWT).
-* **Expense Service :** The core business engine responsible for managing receipt data. It implements asynchronous status updates, Jakarta Bean Validation for data integrity, and a Global Exception Handling layer for secure, standardized API responses.
-* **AI Parser Service :** A decoupled worker service that simulates AI data extraction. It communicates with the Expense Service via Apache Kafka, allowing for non-blocking, high-latency processing of financial documents.
+* **Multi-Profile Environment Strategy:** Utilizes **Spring Profiles** (`dev`, `prod`) to decouple infrastructure from code. This ensures the app is "Environment Aware"—automatically switching between `localhost` for local IDE development and internal Docker networking for **CI/CD pipelines**.
+* **API Resilience (Resilience4j):** Inter-service communication and Kafka producers are protected by **Circuit Breakers** and **Retry logic**. If a downstream service or the message broker fails, the system fails gracefully rather than crashing the user session.
+* **Automated CI/CD Pipeline (GitLab CI):** A standardized pipeline automates the **Build, Test, and Package** stages. This ensures every commit is validated and compiled into a containerized Docker image.
+* **Distributed Caching (Spring Data Redis):** To reduce database load and improve Dashboard latency, expensive "Get Expenses" queries are cached in a distributed Redis store.
+* **Database Parity (PostgreSQL):** Uses PostgreSQL across all environments to catch database-specific bugs early, utilizing different port mappings and DDL policies for Dev vs. Prod.
 
-## Asynchronous AI Pipeline 
-* To maintain high availability and prevent blocking the main request thread during expensive OCR operations, the platform utilizes an event-driven "Fire-and-Forget" pattern:
+## ## Asynchronous AI Pipeline
 
-* Non-Blocking Submission: When a user uploads a receipt via the Expense Service, the system validates the payload, initializes the record as PENDING, and immediately returns an HTTP 202 Accepted response.
+The platform utilizes an event-driven "Fire-and-Forget" pattern to maintain high availability:
 
-* Event Orchestration (Apache Kafka): An ExpenseCreatedEvent is published to a dedicated Kafka topic. The AI Parser Service—operating as a decoupled consumer—picks up the task to simulate data extraction.
+1. **Non-Blocking Submission:** When a user uploads a receipt, the system validates the payload, initializes the record as `PENDING`, and immediately returns an **HTTP 202 Accepted** response.
+2. **Event Orchestration (Kafka):** An `ExpenseCreatedEvent` is published to a dedicated Kafka topic.
+3. **State Synchronization:** The AI Parser Service consumes the event, simulates/executes data extraction, and broadcasts results back. The Expense Service consumes the result and transitions the record to a `PROCESSED` state.
 
-* State Synchronization: Once processing is complete, the results are broadcast back through a response topic. The Expense Service consumes this result, updates the database, and transitions the record to a PROCESSED state.
+## ## Security & Data Isolation
 
-## Key Engineering Decisions
-* Eventual Consistency over ACID: I chose an asynchronous Kafka pipeline for receipt processing. While this introduces eventual consistency (the user sees "Pending" for a few seconds), it ensures the API Gateway remains responsive and can handle high-traffic bursts without waiting for slow AI/OCR logic.
+* **Defense-in-Depth:** Payloads are filtered through immutable **Java Records (DTOs)** to prevent mass assignment attacks.
+* **Database-per-Service Pattern:** Auth and Expense services operate on entirely separate PostgreSQL databases to ensure strict domain isolation.
+* **Secret Management:** Sensitive credentials are never committed to version control; they are injected via `.env` files or CI/CD environment variables.
 
-* Stateless Security: I implemented JWT-based authentication instead of Server-Side Sessions. This allows the KuluBotti services to scale horizontally behind the Gateway without needing a shared session store like Redis.
-
-* Schema Validation at the Edge: By using Jakarta Bean Validation on DTO Records, I ensure that malformed data is rejected at the Controller level, preventing unnecessary load on the downstream Kafka brokers and Databases.
-
-## Security & Data Isolation
-
-* **Defense-in-Depth:** Incoming payloads are strictly filtered through immutable Java Records (DTOs) to prevent mass assignment attacks. 
-* **Database-per-Service Pattern:** To ensure strict domain isolation and minimize blast radius, the Auth Service and Expense Service operate on entirely separate PostgreSQL databases. 
-* **Secret Management:** No sensitive credentials or API keys are committed to version control. All secrets are injected via `.env` files or environment variables.
-* ** Database Isolation: I implemented a Database-per-Service pattern using separate PostgreSQL containers for Auth and Expenses. This prevents "Shared Database" coupling and ensures that a schema change in the Expense service cannot break the Authentication logic.
-
-## Project Structure
-
-The repository is organized as a monorepo containing distinct, deployable services:
+## ## Project Structure
 
 ```text
 KuluBotti_Project/
-├── docker-compose.yml       # Infrastructure blueprint (Databases, Kafka)
-├── .env                     # Secure environment variables (Ignored by Git)
-├── .gitignore               # Strict exclusion rules for compiled/sensitive data
+├── .gitlab-ci.yml           # Automated CI/CD Pipeline blueprint
+├── docker-compose.yml       # Infrastructure (Postgres, Kafka, Redis)
+├── .env                     # Secure environment variables (Git-ignored)
 ├── kulubotti-gateway/       # Port 8080: The front door and router
-├── kulubotti-eureka/        # Port 8761: The dynamic service phonebook
-├── kulubotti-auth/          # Port 8081: Security and JWT generation
-└── kulubotti-expense/       # Port 8082: Core business logic and receipt handling
+├── kulubotti-eureka/        # Port 8761: Service Discovery registry
+├── kulubotti-auth/          # Port 8081: Security & JWT Service
+├── kulubotti-expense/       # Port 8082: Business Logic & Persistence
+├── kulubotti-ai-parser/     # Kafka Consumer: AI Processing Logic
+└── kulubotti-frontend/      # React + Tailwind Dashboard

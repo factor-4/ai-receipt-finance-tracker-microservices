@@ -6,12 +6,17 @@ import com.kulubotti.expense_service.exception.ResourceNotFoundException;
 import com.kulubotti.expense_service.model.ExpenseStatus;
 import com.kulubotti.expense_service.repository.ExpenseRepository;
 import com.kulubotti.expense_service.event.ExpenseCreatedEvent;
+import com.kulubotti.expense_service.service.CloudinaryService;
 import com.kulubotti.expense_service.service.ExpenseProducer;
 import com.kulubotti.expense_service.service.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,15 +27,58 @@ public class ExpenseController {
 
     private final ExpenseRepository expenseRepository;
     private final ExpenseProducer expenseProducer;
-    private final JwtService jwtService; // New Service to handle decoding
+    private final JwtService jwtService;
+    private final CloudinaryService cloudinaryService;
 
     public ExpenseController(ExpenseRepository expenseRepository,
                              ExpenseProducer expenseProducer,
-                             JwtService jwtService) {
+                             JwtService jwtService, CloudinaryService cloudinaryService) {
         this.expenseRepository = expenseRepository;
         this.expenseProducer = expenseProducer;
         this.jwtService = jwtService;
+        this.cloudinaryService=cloudinaryService;
     }
+
+
+
+
+    @PostMapping("/upload")
+    public ResponseEntity<Map<String, Object>> uploadExpense(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("file") MultipartFile file) throws IOException {
+
+        String token = authHeader.substring(7);
+        String username = jwtService.extractUsername(token);
+
+        // 1. REAL CLOUD UPLOAD - No more mocks!
+        String realImageUrl = cloudinaryService.uploadImage(file);
+
+        // 2. Save the real URL to DB
+        Expense newExpense = new Expense(
+                username,
+                "Analyzing...",
+                BigDecimal.ZERO,
+                LocalDate.now(),
+                null,
+                ExpenseStatus.PENDING
+        );
+        newExpense.setReceiptImageUrl(realImageUrl);
+        Expense savedExpense = expenseRepository.save(newExpense);
+
+        // 3. Send the REAL URL to the AI Service via Kafka
+        ExpenseCreatedEvent event = new ExpenseCreatedEvent(
+                savedExpense.getId(),
+                username,
+                realImageUrl
+        );
+        expenseProducer.sendExpenseEvent(event);
+
+        return ResponseEntity.accepted().body(Map.of(
+                "message", "Image uploaded to Cloud. AI analysis started.",
+                "url", realImageUrl
+        ));
+    }
+
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> addExpense(
@@ -49,42 +97,31 @@ public class ExpenseController {
                 ExpenseStatus.PENDING
         );
 
-        // 1. Save to DB (Initial State)
         Expense savedExpense = expenseRepository.save(newExpense);
 
-        // 2. Fire and Forget to Kafka
-        ExpenseCreatedEvent event = new ExpenseCreatedEvent(savedExpense.getId(), username);
+        // Basic event without URL
+        ExpenseCreatedEvent event = new ExpenseCreatedEvent(savedExpense.getId(), username, null);
         expenseProducer.sendExpenseEvent(event);
 
-        // 3. Return 202 Accepted
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Expense receipt uploaded successfully. AI processing has started.");
+        response.put("message", "Manual expense added. AI processing started.");
         response.put("id", savedExpense.getId());
         response.put("status", savedExpense.getStatus());
-        response.put("checkStatusUrl", "/api/expenses/" + savedExpense.getId());
 
         return ResponseEntity.accepted().body(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<Expense>> getMyExpenses(
-            @RequestHeader("Authorization") String authHeader) {
-
+    public ResponseEntity<List<Expense>> getMyExpenses(@RequestHeader("Authorization") String authHeader) {
         String token = authHeader.substring(7);
         String username = jwtService.extractUsername(token);
-
-        // This ensures the database query is scoped ONLY to the logged-in user
-        List<Expense> myExpenses = expenseRepository.findByUsername(username);
-
-        return ResponseEntity.ok(myExpenses);
+        return ResponseEntity.ok(expenseRepository.findByUsername(username));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Expense> getExpenseById(@PathVariable Long id) {
-        // We find the expense or immediately throw our custom 404 exception
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + id));
-
         return ResponseEntity.ok(expense);
     }
 }

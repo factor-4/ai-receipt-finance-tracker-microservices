@@ -1,4 +1,4 @@
 package com.kulubotti.expense_service.event;
 
-public record ExpenseCreatedEvent(Long expenseId, String username) {
+public record ExpenseCreatedEvent(Long expenseId, String username, String receiptImageUrl) {
 }

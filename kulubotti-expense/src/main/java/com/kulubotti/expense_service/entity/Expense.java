@@ -20,27 +20,25 @@ public class Expense {
     @Column(nullable = false)
     private String username;
 
-    @Column(nullable = false)
+    // Removed nullable = false because AI fills these in LATER
     private String merchantName;
-
-    @Column(nullable = false)
     private BigDecimal amount;
-
-    @Column(nullable = false)
     private LocalDate date;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ExpenseStatus status;
 
+    // The field for our professional image storage
+    private String receiptImageUrl;
 
-    //  to store this Java Map natively as a PostgreSQL JSONB column!
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> rawReceiptData;
 
     public Expense() {}
 
+    // Updated Constructor
     public Expense(String username, String merchantName, BigDecimal amount, LocalDate date,
                    Map<String, Object> rawReceiptData, ExpenseStatus status) {
         this.username = username;
@@ -59,9 +57,13 @@ public class Expense {
     public LocalDate getDate() { return date; }
     public Map<String, Object> getRawReceiptData() { return rawReceiptData; }
     public ExpenseStatus getStatus() { return status; }
+    public String getReceiptImageUrl() { return receiptImageUrl; }
 
-
-    public void setStatus(ExpenseStatus status) {
-        this.status = status;
-    }
+    // --- Setters ---
+    public void setStatus(ExpenseStatus status) { this.status = status; }
+    public void setReceiptImageUrl(String receiptImageUrl) { this.receiptImageUrl = receiptImageUrl; }
+    public void setMerchantName(String merchantName) { this.merchantName = merchantName; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public void setDate(LocalDate date) { this.date = date; }
+    public void setRawReceiptData(Map<String, Object> rawReceiptData) { this.rawReceiptData = rawReceiptData; }
 }

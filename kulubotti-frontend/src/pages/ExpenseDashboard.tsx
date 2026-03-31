@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 import { Plus, Receipt, Clock, CheckCircle, Loader2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { expenseService } from '../api/expenseService';
 
 interface Expense {
   id: string;
@@ -19,17 +20,7 @@ const ExpenseDashboard = () => {
   // the Ref (The "Remote Control")
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  //  Fetch Expenses from the Java Expense Service
-  const fetchExpenses = async () => {
-    try {
-      const response = await api.get('/expenses');
-      setExpenses(response.data);
-    } catch (err) {
-      console.error("Failed to fetch expenses", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   // 2. Initial load + Polling logic (Every 3 seconds)
   useEffect(() => {
@@ -38,46 +29,32 @@ const ExpenseDashboard = () => {
     return () => clearInterval(interval); // Clean up on close
   }, []);
 
-  const handleAddTestExpense = async () => {
-    try {
-      // Sending a test payload to trigger the Kafka pipeline
-      await api.post('/expenses', {
-        merchantName: "Reaktor Cafe",
-        amount: 5.50,
-        date: new Date().toISOString().split('T')[0]
-      });
-      fetchExpenses(); // Refresh list to show the PENDING state
-    } catch (err) {
-      alert("Error adding expense");
-    }
-  };
+ 
 
 
-  const handleFileUpload = async (file: File) => {
-    setLoading(true);
+  // Inside your component...
+const fetchExpenses = async () => {
+  try {
+    //const data = await expenseService.getExpenses();
+    //setExpenses(data);
+  } catch (err) {
+    console.error("Failed to fetch", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
-    // 1. Package the file into FormData
-    const formData = new FormData();
-    formData.append('file', file);
-    // Optional: Add metadata so the backend knows what to do
-    formData.append('description', 'Manual Upload');
-
-    try {
-      // 2. POST to the Java Backend
-      // Axios handles the 'Content-Type: multipart/form-data' header automatically when it sees FormData
-      const response = await api.post('/expenses/upload', formData);
-
-      console.log("Upload successful:", response.data);
-
-      // 4. Refresh the list to show the new item (likely in PENDING state)
-      fetchExpenses();
-    } catch (err) {
-      console.error("Upload failed:", err);
-      alert("Error uploading receipt. Ensure the backend /upload endpoint is ready.");
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleFileUpload = async (file: File) => {
+  setLoading(true);
+  try {
+    await expenseService.uploadReceipt(file);
+    fetchExpenses(); 
+  } catch (err) {
+    alert("Upload failed. Check Gateway connection.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8">

@@ -16,5 +16,6 @@ public class ExpenseProducer {
     public void sendExpenseEvent(ExpenseCreatedEvent event) {
         kafkaTemplate.send("ai-receipt-topic", event.username(), event);
         System.out.println("[KAFKA] Sent AI processing event for Expense ID: " + event.expenseId());
+        System.out.println("[KAFKA] Sent AI processing event for Expense ID and event : " + event);
     }
 }

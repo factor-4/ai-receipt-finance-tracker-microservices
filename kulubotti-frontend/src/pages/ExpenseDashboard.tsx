@@ -15,46 +15,65 @@ interface Expense {
 const ExpenseDashboard = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const { logout } = useAuth();
+  
+  // 1. Destructure token alongside logout
+  const { logout, token } = useAuth();
+  
+  // 2. Add state to hold the decoded username
+  const [username, setUsername] = useState<string>('User');
 
-  // the Ref (The "Remote Control")
+  // The Ref (The "Remote Control")
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // 3. Decode the JWT to extract the username whenever the token changes
+  useEffect(() => {
+    if (token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
 
+        const decodedToken = JSON.parse(jsonPayload);
+        
+        // Use 'sub' or 'username' depending on how your Spring Boot configures the JWT
+        setUsername(decodedToken.sub || decodedToken.username || 'User');
+      } catch (error) {
+        console.error("Failed to decode token for username", error);
+      }
+    }
+  }, [token]);
 
-  // 2. Initial load + Polling logic (Every 3 seconds)
+  // Initial load + Polling logic (Every 3 seconds)
   useEffect(() => {
     fetchExpenses();
     const interval = setInterval(fetchExpenses, 3000);
     return () => clearInterval(interval); // Clean up on close
   }, []);
 
- 
+  const fetchExpenses = async () => {
+    try {
+      const data = await expenseService.getExpenses();
+      setExpenses(data);
+    } catch (err) {
+      console.error("Failed to fetch", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-
-  // Inside your component...
-const fetchExpenses = async () => {
-  try {
-    //const data = await expenseService.getExpenses();
-    //setExpenses(data);
-  } catch (err) {
-    console.error("Failed to fetch", err);
-  } finally {
-    setLoading(false);
-  }
-};
-
-const handleFileUpload = async (file: File) => {
-  setLoading(true);
-  try {
-    await expenseService.uploadReceipt(file);
-    fetchExpenses(); 
-  } catch (err) {
-    alert("Upload failed. Check Gateway connection.");
-  } finally {
-    setLoading(false);
-  }
-};
+  const handleFileUpload = async (file: File) => {
+    setLoading(true);
+    try {
+      await expenseService.uploadReceipt(file);
+      fetchExpenses(); 
+    } catch (err) {
+      alert("Upload failed. Check Gateway connection.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
@@ -65,7 +84,10 @@ const handleFileUpload = async (file: File) => {
             <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
               KuluBotti <span className="text-sm font-light text-slate-500 ml-2">v4.0</span>
             </h1>
-            <p className="text-slate-400 mt-1 font-medium">Monitoring your financial pulse.</p>
+            {/* 4. Display the dynamic username here */}
+            <p className="text-slate-400 mt-2 font-medium">
+              Welcome back, <span className="text-blue-400 font-bold capitalize">{username}</span>. Let's check your financial pulse.
+            </p>
           </div>
 
           <div className="flex items-center gap-6">
@@ -109,7 +131,7 @@ const handleFileUpload = async (file: File) => {
 
               <div className="flex items-center gap-8">
                 <div className="text-right">
-                  <p className="text-xl font-mono font-bold">€{exp.amount.toFixed(2)}</p>
+                  <p className="text-xl font-mono font-bold">€{exp.amount?.toFixed(2)}</p>
                   <div className="flex items-center gap-1 justify-end mt-1">
                     {exp.status === 'PENDING' ? (
                       <span className="text-amber-400 text-xs flex items-center gap-1">
@@ -127,8 +149,6 @@ const handleFileUpload = async (file: File) => {
           ))}
         </div>
       </div>
-
-
 
       {/* Standardized Hidden Input: 
   - accept="image/*" ensures only images are picked.

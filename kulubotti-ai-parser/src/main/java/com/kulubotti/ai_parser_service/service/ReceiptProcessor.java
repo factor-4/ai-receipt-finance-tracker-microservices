@@ -27,8 +27,29 @@ public class ReceiptProcessor {
 
     @KafkaListener(topics = "ai-receipt-topic", groupId = "ai-processing-group")
     public void processReceipt(ExpenseCreatedEvent event) {
-        String instructions = "Extract merchantName, amount, date, and lineItems from this receipt as JSON.";
-
+        String instructions = """
+    Analyze this receipt image and extract the data into the exact JSON format below.
+    
+    CRITICAL RULES:
+    1. TRANSLATION: The receipt is likely in Finnish. Translate all 'item' names into English (e.g., 'Kerrosateria' -> 'Club Burger Meal').
+    2. INFERENCE: If the exact merchant name is missing or is just a logo, you MUST infer the merchant name based on the context and the items bought (e.g., if the items are Hesburger products, output "Hesburger").
+    3. FORMATTING: Return ONLY raw, valid JSON. Do NOT wrap the response in ```json markdown blocks. 
+    
+    EXPECTED JSON:
+    {
+      "merchantName": "string",
+      "amount": number,
+      "date": "YYYY-MM-DD",
+      "lineItems": [
+        {
+          "item": "string",
+          "unitPrice": number,
+          "quantity": number,
+          "total": number
+        }
+      ]
+    }
+    """;
         try {
             //  Build Media using a URI
             var media = Media.builder()

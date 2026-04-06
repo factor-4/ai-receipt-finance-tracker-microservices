@@ -9,11 +9,15 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Map;
+
 @Service
 public class ExpenseResultConsumer {
 
     private final ExpenseRepository expenseRepository;
-    private final ObjectMapper objectMapper; // To parse the JSON result
+    private final ObjectMapper objectMapper;
 
     public ExpenseResultConsumer(ExpenseRepository expenseRepository, ObjectMapper objectMapper) {
         this.expenseRepository = expenseRepository;
@@ -21,13 +25,12 @@ public class ExpenseResultConsumer {
     }
 
     @Transactional
-    @KafkaListener(topics = "expense-results", groupId = "expense-group-v3") // Changed to v3 to ensure fresh start
+    @KafkaListener(topics = "expense-results", groupId = "expense-group-v3")
     public void handleProcessingResult(String message) {
         try {
             System.out.println(" [KAFKA] Received raw message: " + message);
             JsonNode jsonNode = objectMapper.readTree(message);
 
-            // SAFE ACCESS: Check if the node exists before converting to long
             JsonNode idNode = jsonNode.get("expenseId");
             if (idNode == null || idNode.isNull()) {
                 System.err.println("[KAFKA] Field 'expenseId' is missing in JSON!");
@@ -38,9 +41,51 @@ public class ExpenseResultConsumer {
             String status = jsonNode.has("status") ? jsonNode.get("status").asText() : "UNKNOWN";
 
             expenseRepository.findById(id).ifPresentOrElse(expense -> {
-                expense.setStatus(ExpenseStatus.PROCESSED);
+
+                // If it was successful AND we have the aiData field
+                if ("PROCESSED".equals(status) && jsonNode.has("aiData")) {
+                    String rawAiData = jsonNode.get("aiData").asText();
+
+                    // Clean the Markdown from the string
+                    String cleanJson = rawAiData.replace("```json", "").replace("```", "").trim();
+
+                    try {
+                        // Parse the inner JSON string into a usable tree
+                        JsonNode aiDataNode = objectMapper.readTree(cleanJson);
+
+                        // Map the structured fields safely
+                        if (aiDataNode.hasNonNull("merchantName")) {
+                            expense.setMerchantName(aiDataNode.get("merchantName").asText());
+                        }
+                        if (aiDataNode.hasNonNull("amount")) {
+                            // Converts the AI's number/string into your BigDecimal
+                            expense.setAmount(new BigDecimal(aiDataNode.get("amount").asText()));
+                        }
+                        if (aiDataNode.hasNonNull("date")) {
+                            // Converts the AI's "YYYY-MM-DD" into your LocalDate
+                            expense.setDate(LocalDate.parse(aiDataNode.get("date").asText()));
+                        }
+
+                        // Map the entire raw JSON to your JSONB column
+                        // We convert the JSON tree into a Java Map as required by your entity
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> rawMap = objectMapper.convertValue(aiDataNode, Map.class);
+                        expense.setRawReceiptData(rawMap);
+
+                        expense.setStatus(ExpenseStatus.PROCESSED);
+                        System.out.println(" [KAFKA] Saved AI data for Expense " + id + ".");
+
+                    } catch (Exception e) {
+                        System.err.println(" [KAFKA] Failed to parse AI Data: " + e.getMessage());
+                        // If parsing fails, we still save, but mark it failed so a human can check
+                        expense.setStatus(ExpenseStatus.FAILED);
+                    }
+                } else {
+                    expense.setStatus(ExpenseStatus.FAILED);
+                }
+
                 expenseRepository.saveAndFlush(expense);
-                System.out.println(" [KAFKA] Database updated: Expense " + id + " is now PROCESSED.");
+
             }, () -> {
                 System.err.println("[KAFKA] Received result for Expense ID " + id + " but it's not in our DB!");
             });

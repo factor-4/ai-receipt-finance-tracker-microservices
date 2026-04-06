@@ -5,13 +5,15 @@ KuluBotti is a custom-built, event-driven microservices platform for automated e
 
 ## ## Core Architecture
 
+## ## Asynchronous AI Pipeline (Gemini & Cloudinary)
+
 This platform is built on a distributed microservices architecture utilizing the following core components:
 
-* **API Gateway (Spring Cloud Gateway):** Single entry point for all client requests, leveraging Java 21 Virtual Threads for high-concurrency routing.
-* **Service Registry (Netflix Eureka):** Provides dynamic service discovery, allowing microservices to register themselves without hardcoded IP addresses.
-* **Auth Service:** Manages user identity using BCrypt hashing and stateless **JWT (JSON Web Tokens)** for secure, perimeter-based authentication.
-* **Expense Service:** The core business engine managing receipt data, implementing Jakarta Bean Validation and a Global Exception Handling layer.
-* **AI Parser Service:** A decoupled worker service that processes receipt data. It communicates via **Apache Kafka** to handle high-latency OCR/Extraction tasks without blocking the main user flow.
+**Secure Image Hosting:** When a user uploads a receipt via the React frontend, the image is securely uploaded to **Cloudinary**, returning a highly optimized, CDN-delivered URL.
+2. **Non-Blocking Submission:** The Expense Service validates the payload, initializes the database record as `PENDING`, and immediately returns an **HTTP 202 Accepted** response so the user interface never freezes.
+3. **Event Orchestration (Kafka):** An `ExpenseCreatedEvent` (containing the image URL and ID) is published to a dedicated Apache Kafka topic.
+4. **Generative AI Extraction:** The decoupled AI Parser Service consumes the event and prompts the **Google Gemini LLM** to perform multimodal OCR and structural JSON extraction on the receipt image.
+5. **State Synchronization:** The AI Service broadcasts the structured results back to Kafka. The Expense Service consumes this result, maps the JSONB payload directly into PostgreSQL, and transitions the record to a `PROCESSED` state for the frontend dashboard to display.
 
 ## ## Reliability & DevOps Standards
 
@@ -50,3 +52,41 @@ KuluBotti_Project/
 ├── kulubotti-expense/       # Port 8082: Business Logic & Persistence
 ├── kulubotti-ai-parser/     # Kafka Consumer: AI Processing Logic
 └── kulubotti-frontend/      # React + Tailwind Dashboard
+
+
+
+##  Quick Start (Local Development)
+
+To run this microservices architecture locally, you will need **Docker**, **Java 21**, and **Node.js** installed.
+
+### 1. Spin up the Infrastructure
+The core dependencies (PostgreSQL databases, Kafka, Zookeeper) are containerized to keep your local machine clean.
+
+```bash
+# Start all infrastructure in the background
+docker-compose up -d
+
+# Verify all containers are running successfully
+docker ps
+```
+
+### 2. Boot the Microservices
+Because this architecture relies on dynamic Service Discovery, the services must be booted in a specific order. Run these via your IDE or using `./mvnw spring-boot:run`:
+
+1. **Eureka Server** (Port 8761) - *Wait for this to fully start first.*
+2. **API Gateway** (Port 8080)
+3. **Auth Service** (Port 8081)
+4. **Expense Service** (Port 8082)
+5. **AI Parser Service** (Kafka Consumer)
+
+### 3. Launch the Frontend Dashboard
+Once the backend Gateway is running, open a new terminal window in the `kulubotti-frontend` directory:
+
+```bash
+# Install dependencies
+npm install
+
+# Start the Vite development server (with Gateway proxy enabled)
+npm run dev
+```
+The dashboard will now be accessible at `http://localhost:5173`.

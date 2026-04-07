@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  // In development, it uses the local '/api' proxy.
+  // In production, Vite injects the live Gateway URL.
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 });
 
 // Interceptor to attach the JWT token automatically
@@ -12,7 +14,6 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
-
 
 api.interceptors.response.use(
   (response) => {
@@ -36,4 +37,5 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 export default api;

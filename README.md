@@ -1,5 +1,5 @@
 ﻿
-# KuluBotti 🤖
+# KuluBotti 
 ### AI-Powered Receipt Finance Tracker Microservices
 
 KuluBotti is a custom-built, event-driven microservices platform for automated expense management. Designed from scratch using **Java 21** and **Spring Boot**, this personal project demonstrates a deep understanding of scalable backend patterns, dynamic service discovery, and resilient asynchronous processing.

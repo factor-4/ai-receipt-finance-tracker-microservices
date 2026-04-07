@@ -1,58 +1,55 @@
-﻿# KuluBotti 🤖🧾
+﻿
+# KuluBotti 🤖
 ### AI-Powered Receipt Finance Tracker Microservices
 
-KuluBotti is a custom-built, event-driven microservices platform for automated expense management. Designed from scratch using **Java 21** and **Spring Boot**, this project demonstrates a deep understanding of scalable backend patterns, dynamic service discovery, and resilient asynchronous processing.
+KuluBotti is a custom-built, event-driven microservices platform for automated expense management. Designed from scratch using **Java 21** and **Spring Boot**, this personal project demonstrates a deep understanding of scalable backend patterns, dynamic service discovery, and resilient asynchronous processing.
 
-## ## Core Architecture
+## Core Architecture
 
-## ## Asynchronous AI Pipeline (Gemini & Cloudinary)
+This platform utilizes a distributed microservices architecture, implementing the **Database-per-Service** pattern to ensure strict domain isolation.
 
-This platform is built on a distributed microservices architecture utilizing the following core components:
+* **Service Discovery (Netflix Eureka):** Acts as the dynamic address book for the cluster, allowing services to find each other without hardcoded IPs.
+* **API Gateway (Spring Cloud Gateway):** The single entry point for the frontend, handling routing, CORS, and initial token validation.
+* **Auth Service:** Manages user registration and JWT generation, backed by its own isolated PostgreSQL database.
+* **Expense Service:** The core business engine. Handles CRUD operations for expenses and publishes events to the message broker.
+* **AI Parser Service:** A decoupled Kafka consumer that asynchronously processes receipt images.
 
-**Secure Image Hosting:** When a user uploads a receipt via the React frontend, the image is securely uploaded to **Cloudinary**, returning a highly optimized, CDN-delivered URL.
-2. **Non-Blocking Submission:** The Expense Service validates the payload, initializes the database record as `PENDING`, and immediately returns an **HTTP 202 Accepted** response so the user interface never freezes.
+## Asynchronous AI Pipeline (Gemini & Cloudinary)
+
+To ensure the frontend remains highly responsive, the platform utilizes an event-driven "Fire-and-Forget" pattern:
+
+1. **Secure Image Hosting:** When a user uploads a receipt via the React frontend, the image is securely uploaded to **Cloudinary**, returning a highly optimized, CDN-delivered URL.
+2. **Non-Blocking Submission:** The Expense Service validates the payload, initializes the database record as `PENDING`, and immediately returns an **HTTP 202 Accepted** response so the UI never freezes.
 3. **Event Orchestration (Kafka):** An `ExpenseCreatedEvent` (containing the image URL and ID) is published to a dedicated Apache Kafka topic.
 4. **Generative AI Extraction:** The decoupled AI Parser Service consumes the event and prompts the **Google Gemini LLM** to perform multimodal OCR and structural JSON extraction on the receipt image.
 5. **State Synchronization:** The AI Service broadcasts the structured results back to Kafka. The Expense Service consumes this result, maps the JSONB payload directly into PostgreSQL, and transitions the record to a `PROCESSED` state for the frontend dashboard to display.
 
-## ## Reliability & DevOps Standards
+## Development vs. Production Environments
 
-To achieve professional-grade stability and "full standardization," the following patterns are implemented:
+A major architectural focus of this project was ensuring a clean separation between development and production environments using **Spring Profiles** (`dev`, `prod`) and CI/CD environment variable injection.
 
-* **Multi-Profile Environment Strategy:** Utilizes **Spring Profiles** (`dev`, `prod`) to decouple infrastructure from code. This ensures the app is "Environment Aware"—automatically switching between `localhost` for local IDE development and internal Docker networking for **CI/CD pipelines**.
-* **API Resilience (Resilience4j):** Inter-service communication and Kafka producers are protected by **Circuit Breakers** and **Retry logic**. If a downstream service or the message broker fails, the system fails gracefully rather than crashing the user session.
-* **Automated CI/CD Pipeline (GitLab CI):** A standardized pipeline automates the **Build, Test, and Package** stages. This ensures every commit is validated and compiled into a containerized Docker image.
-* **Distributed Caching (Spring Data Redis):** To reduce database load and improve Dashboard latency, expensive "Get Expenses" queries are cached in a distributed Redis store.
-* **Database Parity (PostgreSQL):** Uses PostgreSQL across all environments to catch database-specific bugs early, utilizing different port mappings and DDL policies for Dev vs. Prod.
+* **Local Development (`dev`):** Utilizes `docker-compose` to spin up local instances of PostgreSQL, Redis, and Zookeeper/Kafka. Services communicate via internal Docker network hostnames, and the React frontend uses a local Vite proxy to bypass CORS restrictions.
+* **Cloud Production (`prod`):** Deployed via a continuous deployment (CI/CD) pipeline linked to GitHub. The production environment replaces local containers with managed cloud infrastructure: **Neon Serverless PostgreSQL** for databases and **Aiven** for the Kafka cluster. Environment variables strictly overwrite local settings (e.g., injecting secure `JDBC` URLs, dynamically assigning IP addresses to Eureka to bypass cloud DNS issues, and enforcing strict CORS headers at the API Gateway).
+* **Network Throttling:** Production services are configured with extended Eureka heartbeat intervals (90-120 seconds) to comply with cloud provider rate limits and prevent DDoS-protection blocks.
 
-## ## Asynchronous AI Pipeline
-
-The platform utilizes an event-driven "Fire-and-Forget" pattern to maintain high availability:
-
-1. **Non-Blocking Submission:** When a user uploads a receipt, the system validates the payload, initializes the record as `PENDING`, and immediately returns an **HTTP 202 Accepted** response.
-2. **Event Orchestration (Kafka):** An `ExpenseCreatedEvent` is published to a dedicated Kafka topic.
-3. **State Synchronization:** The AI Parser Service consumes the event, simulates/executes data extraction, and broadcasts results back. The Expense Service consumes the result and transitions the record to a `PROCESSED` state.
-
-## ## Security & Data Isolation
+## Security & Data Isolation
 
 * **Defense-in-Depth:** Payloads are filtered through immutable **Java Records (DTOs)** to prevent mass assignment attacks.
-* **Database-per-Service Pattern:** Auth and Expense services operate on entirely separate PostgreSQL databases to ensure strict domain isolation.
-* **Secret Management:** Sensitive credentials are never committed to version control; they are injected via `.env` files or CI/CD environment variables.
+* **Stateless Authentication:** Implements stateless JWT (JSON Web Tokens) validated at the API Gateway level before requests are routed to internal microservices.
+* **Secret Management:** Sensitive credentials (LLM API keys, Database passwords, Cloudinary secrets) are never committed to version control; they are injected securely via `.env` files locally or CI/CD environment variables in production.
 
-## ## Project Structure
+## Project Structure
 
 ```text
 KuluBotti_Project/
-├── .gitlab-ci.yml           # Automated CI/CD Pipeline blueprint
-├── docker-compose.yml       # Infrastructure (Postgres, Kafka, Redis)
+├── docker-compose.yml       # Local Dev Infrastructure (Postgres, Kafka, Redis)
 ├── .env                     # Secure environment variables (Git-ignored)
-├── kulubotti-gateway/       # Port 8080: The front door and router
-├── kulubotti-eureka/        # Port 8761: Service Discovery registry
+├── kulubotti-discovery/     # Port 8761: Service Discovery registry
+├── kulubotti-gateway/       # Port 8080: The front door, CORS, and router
 ├── kulubotti-auth/          # Port 8081: Security & JWT Service
 ├── kulubotti-expense/       # Port 8082: Business Logic & Persistence
 ├── kulubotti-ai-parser/     # Kafka Consumer: AI Processing Logic
 └── kulubotti-frontend/      # React + Tailwind Dashboard
-
 
 
 ##  Quick Start (Local Development)

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api/axiosConfig';
 import { Plus, Receipt, Clock, CheckCircle, Loader2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { expenseService } from '../api/expenseService';

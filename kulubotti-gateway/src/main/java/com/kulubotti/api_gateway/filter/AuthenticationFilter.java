@@ -29,9 +29,15 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // ALWAYS let CORS Preflight OPTIONS requests pass through immediately!
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
 
-        // Let login/register pass without a token
+        // 2. Let login/register pass without a token
         if (path.startsWith("/api/auth")) {
             filterChain.doFilter(request, response);
             return;
